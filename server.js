@@ -16,9 +16,9 @@ app.use(cors());
 const cloudinary = require("cloudinary").v2;
 
 cloudinary.config({
-  cloud_name: "dutul2uet",
-  api_key: "835511657456119",
-  api_secret: "sWliwJzzWfu3agAjQ0koMZymVnc"
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET
 });
 
 
@@ -62,9 +62,10 @@ const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "profile_photos",
-    allowed_formats: ["jpg", "png", "jpeg", "webp"]
-  }
+  folder: "profile_photos",
+  allowed_formats: ["jpg", "png", "jpeg", "webp"],
+  transformation: [{ width: 500, height: 500, crop: "limit" }]
+}
 });
 
 const upload = multer({ storage });
@@ -139,14 +140,13 @@ app.post("/login",async(req,res)=>{
 app.get("/profile/:id",async(req,res)=>{
 
   const id=req.params.id;
+  const photo = req.file.path;
 
   const user = await User.findById(id);
   if(!user){
     return res.status(404).json({message:"User not found"});
   }
-  if(!user){
-    return res.json({message:"User not found"});
-  }
+ 
 
   res.json({
     id:user._id,
@@ -159,20 +159,20 @@ app.get("/profile/:id",async(req,res)=>{
 
 /* UPLOAD PHOTO */
 
-app.post("/upload-photo/:id",upload.single("image"),async(req,res)=>{
+app.post("/upload-photo/:id", upload.single("image"), async (req, res) => {
 
-  const id=req.params.id;
+  const id = req.params.id;
 
-  if(!req.file){
-    return res.json({message:"No file uploaded"});
+  if (!req.file) {
+    return res.json({ message: "No file uploaded" });
   }
 
-  const photo=req.file.filename;
+  const photo = req.file.path; // 🔥 Cloudinary URL
 
-  await User.findByIdAndUpdate(id,{photo});
+  await User.findByIdAndUpdate(id, { photo });
 
   res.json({
-    message:"Photo updated",
+    message: "Photo updated",
     photo
   });
 
