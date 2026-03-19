@@ -13,23 +13,31 @@ app.use(cors());
 
 /* MONGODB CONNECTION */
 
-mongoose.connect("mongodb+srv://terabaapmerabaap99_db_user:Gamehub123@gamehub-cluster.nmpcia8.mongodb.net/gamehub")
+mongoose.connect(process.env.MONGO_URI)
 .then(()=>console.log("MongoDB connected"))
 .catch(err=>console.log(err));
 
 /* SCHEMAS */
 
 const userSchema = new mongoose.Schema({
-  name:String,
-  email:String,
-  password:String,
-  photo:String
+  name: { type:String, unique:true },
+  email: { type:String, unique:true },
+  password: String,
+  photo: String,
+
+  isAdmin: {
+    type: Boolean,
+    default: false
+  }
 });
+
 
 const scoreSchema = new mongoose.Schema({
   user_id:String,
   game_name:String,
   score:Number
+},{
+  timestamps:true
 });
 
 const User = mongoose.model("users",userSchema);
@@ -109,7 +117,8 @@ app.post("/login",async(req,res)=>{
     message:"Login successful",
     user_id:user._id,
     name:user.name,
-    photo:user.photo
+    photo:user.photo,
+    isAdmin:user.isAdmin // 🔥 ADD THIS
   });
 
 });
@@ -121,7 +130,9 @@ app.get("/profile/:id",async(req,res)=>{
   const id=req.params.id;
 
   const user = await User.findById(id);
-
+  if(!user){
+    return res.status(404).json({message:"User not found"});
+  }
   if(!user){
     return res.json({message:"User not found"});
   }
@@ -281,17 +292,61 @@ app.get("/my-score/:user/:game",async(req,res)=>{
 });
 
 /* GET ALL USERS */
+app.get("/all-users/:adminId",async(req,res)=>{
 
-app.get("/all-users",async(req,res)=>{
+  try{
 
-  const users = await User.find();
+    const admin = await User.findById(req.params.adminId);
 
-  res.json(users);
+    if(!admin || !admin.isAdmin){
+      return res.status(403).json({message:"Not authorized"});
+    }
+
+    const users = await User.find().select("name email photo");
+
+    res.json(users);
+
+  }catch(e){
+    res.status(500).json({message:e.message});
+  }
 
 });
 
-/* SERVER */
+/* Delete USERS */
 
-app.listen(3000,"0.0.0.0",()=>{
-  console.log("Server running on port 3000");
+app.delete("/delete-user/:adminId/:userId",async(req,res)=>{
+
+  try{
+
+    const {adminId,userId} = req.params;
+
+    const admin = await User.findById(adminId);
+
+    if(!admin || !admin.isAdmin){
+      return res.status(403).json({message:"Not authorized"});
+    }
+
+    if(adminId === userId){
+      return res.json({message:"Admin cannot delete itself"});
+    }
+
+    await User.findByIdAndDelete(userId);
+
+    /// score bhi delete kar de
+    await Score.deleteMany({user_id:userId});
+
+    res.json({message:"User deleted successfully"});
+
+  }catch(e){
+    res.status(500).json({message:e.message});
+  }
+
+});
+
+
+/* SERVER */
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT,"0.0.0.0",()=>{
+  console.log(`Server running on port ${PORT}`);
 });
