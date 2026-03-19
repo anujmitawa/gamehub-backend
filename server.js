@@ -11,6 +11,18 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
+
+
+const cloudinary = require("cloudinary").v2;
+
+cloudinary.config({
+  cloud_name: "dutul2uet",
+  api_key: "835511657456119",
+  api_secret: "sWliwJzzWfu3agAjQ0koMZymVnc"
+});
+
+
+
 /* MONGODB CONNECTION */
 
 mongoose.connect(process.env.MONGO_URI)
@@ -45,18 +57,17 @@ const Score = mongoose.model("scores",scoreSchema);
 
 /* IMAGE STORAGE */
 
-const storage = multer.diskStorage({
-  destination:(req,file,cb)=>{
-    cb(null,"uploads/");
-  },
-  filename:(req,file,cb)=>{
-    cb(null,Date.now()+path.extname(file.originalname));
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "profile_photos",
+    allowed_formats: ["jpg", "png", "jpeg", "webp"]
   }
 });
 
-const upload = multer({storage});
-
-app.use("/uploads",express.static("uploads"));
+const upload = multer({ storage });
 
 /* REGISTER */
 
