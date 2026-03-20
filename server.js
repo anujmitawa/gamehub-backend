@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -5,7 +7,6 @@ const bcrypt = require("bcrypt");
 const multer = require("multer");
 const path = require("path");
 const mongoose = require("mongoose");
-
 const app = express();
 
 app.use(bodyParser.json());
@@ -24,7 +25,7 @@ cloudinary.config({
 
 
 /* MONGODB CONNECTION */
-
+console.log("MONGO_URI:", process.env.MONGO_URI);
 mongoose.connect(process.env.MONGO_URI)
 .then(()=>console.log("MongoDB connected"))
 .catch(err=>console.log(err));
@@ -57,17 +58,8 @@ const Score = mongoose.model("scores",scoreSchema);
 
 /* IMAGE STORAGE */
 
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-  folder: "profile_photos",
-  allowed_formats: ["jpg", "png", "jpeg", "webp"],
-  transformation: [{ width: 500, height: 500, crop: "limit" }]
-}
-});
-
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 /* REGISTER */
@@ -140,7 +132,6 @@ app.post("/login",async(req,res)=>{
 app.get("/profile/:id",async(req,res)=>{
 
   const id=req.params.id;
-  const photo = req.file.path;
 
   const user = await User.findById(id);
   if(!user){
@@ -160,22 +151,36 @@ app.get("/profile/:id",async(req,res)=>{
 /* UPLOAD PHOTO */
 
 app.post("/upload-photo/:id", upload.single("image"), async (req, res) => {
+  try {
+    const id = req.params.id;
 
-  const id = req.params.id;
+    if (!req.file) {
+      return res.json({ message: "No file uploaded" });
+    }
 
-  if (!req.file) {
-    return res.json({ message: "No file uploaded" });
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "profile_photos" },
+      async (error, result) => {
+        if (error) {
+          return res.status(500).json({ message: error.message });
+        }
+
+        const photo = result.secure_url;
+
+        await User.findByIdAndUpdate(id, { photo });
+
+        res.json({
+          message: "Photo updated",
+          photo
+        });
+      }
+    );
+
+    stream.end(req.file.buffer);
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
-
-  const photo = req.file.path; // 🔥 Cloudinary URL
-
-  await User.findByIdAndUpdate(id, { photo });
-
-  res.json({
-    message: "Photo updated",
-    photo
-  });
-
 });
 
 /* CHANGE PASSWORD */
