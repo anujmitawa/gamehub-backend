@@ -1,5 +1,4 @@
-require("dotenv").config();
-
+require('dotenv').config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -12,14 +11,18 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
+console.log("Cloud Name:", process.env.CLOUDINARY_CLOUD_NAME);
 
+const cloudinary = require('cloudinary').v2;
 
-const cloudinary = require("cloudinary").v2;
+if (!process.env.CLOUDINARY_CLOUD_NAME) {
+  console.log("❌ Cloudinary ENV missing");
+}
 
 cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 
@@ -101,30 +104,36 @@ app.post("/register",async(req,res)=>{
 
 /* LOGIN */
 
-app.post("/login",async(req,res)=>{
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-  const {email,password}=req.body;
+    console.log("LOGIN BODY:", req.body); 
 
-  const user = await User.findOne({email});
+    const user = await User.findOne({ email });
 
-  if(!user){
-    return res.json({message:"Invalid email or password"});
+    if (!user) {
+      return res.json({ message: "Invalid email or password" });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+
+    if (!match) {
+      return res.json({ message: "Invalid email or password" });
+    }
+
+    res.json({
+      message: "Login successful",
+      user_id: user._id,
+      name: user.name,
+      photo: user.photo,
+      isAdmin: user.isAdmin
+    });
+
+  } catch (err) {
+    console.log("LOGIN ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
-
-  const match = await bcrypt.compare(password,user.password);
-
-  if(!match){
-    return res.json({message:"Invalid email or password"});
-  }
-
-  res.json({
-    message:"Login successful",
-    user_id:user._id,
-    name:user.name,
-    photo:user.photo,
-    isAdmin:user.isAdmin // 🔥 ADD THIS
-  });
-
 });
 
 /* GET PROFILE */
