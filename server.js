@@ -225,62 +225,31 @@ app.post("/change-password/:id",async(req,res)=>{
 app.get("/analytics", async (req, res) => {
   try {
 
-    const games = await Score.aggregate([
+    const totalUsers = await User.countDocuments();
+    const totalGamesPlayed = await Score.countDocuments();
 
-      /// ❌ score 0 wale hata do
-      {
-        $match: { score: { $gt: 0 } }
-      },
-
-      /// group by game + user
+    const gameStats = await Score.aggregate([
       {
         $group: {
-          _id: {
-            game: "$game_name",
-            user: "$user_id"
-          },
-          score: { $max: "$score" }
-        }
-      },
-
-      /// 🔥 USER NAME JOIN
-      {
-        $lookup: {
-          from: "users",
-          localField: "_id.user",
-          foreignField: "_id",
-          as: "userData"
-        }
-      },
-
-      {
-        $unwind: "$userData"
-      },
-
-      /// format
-      {
-        $group: {
-          _id: "$_id.game",
-          users: {
-            $push: {
-              name: "$userData.name",
-              score: "$score"
-            }
-          },
+          _id: "$game_name",
           totalPlays: { $sum: 1 }
         }
       },
-
       {
         $sort: { totalPlays: -1 }
-      },
-
-      {
-        $limit: 4
       }
     ]);
 
-    res.json(games);
+    const formatted = {};
+    gameStats.forEach(g => {
+      formatted[g._id] = g.totalPlays;
+    });
+
+    res.json({
+      totalUsers,
+      totalGamesPlayed,
+      games: formatted
+    });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
