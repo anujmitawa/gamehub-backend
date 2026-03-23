@@ -226,6 +226,13 @@ app.get("/analytics", async (req, res) => {
   try {
 
     const games = await Score.aggregate([
+
+      /// ❌ score 0 wale hata do
+      {
+        $match: { score: { $gt: 0 } }
+      },
+
+      /// group by game + user
       {
         $group: {
           _id: {
@@ -235,21 +242,39 @@ app.get("/analytics", async (req, res) => {
           score: { $max: "$score" }
         }
       },
+
+      /// 🔥 USER NAME JOIN
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id.user",
+          foreignField: "_id",
+          as: "userData"
+        }
+      },
+
+      {
+        $unwind: "$userData"
+      },
+
+      /// format
       {
         $group: {
           _id: "$_id.game",
           users: {
             $push: {
-              user_id: "$_id.user",
+              name: "$userData.name",
               score: "$score"
             }
           },
           totalPlays: { $sum: 1 }
         }
       },
+
       {
         $sort: { totalPlays: -1 }
       },
+
       {
         $limit: 4
       }
