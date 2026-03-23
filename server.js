@@ -221,8 +221,42 @@ app.post("/change-password/:id",async(req,res)=>{
 
 });
 
+/* GAME ANALYTICS  */
+app.get("/analytics", async (req, res) => {
+  try {
+
+    const totalUsers = await User.countDocuments();
+    const totalGamesPlayed = await Score.countDocuments();
+
+    const gameStats = await Score.aggregate([
+      {
+        $group: {
+          _id: "$game_name",
+          totalPlays: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { totalPlays: -1 }
+      }
+    ]);
+
+    const formatted = {};
+    gameStats.forEach(g => {
+      formatted[g._id] = g.totalPlays;
+    });
+
+    res.json({
+      totalUsers,
+      totalGamesPlayed,
+      games: formatted
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* SAVE USER DETAILS */
-/* user ka sara score or baki sab data k liye hai ye api */
 app.get("/user-details/:id", async (req, res) => {
   try {
     const userId = req.params.id;
