@@ -221,6 +221,38 @@ app.post("/change-password/:id",async(req,res)=>{
 
 });
 
+/* SAVE USER DETAILS */
+/* user ka sara score or baki sab data k liye hai ye api */
+app.get("/user-details/:id", async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findById(userId).select("name email photo");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const scores = await Score.find({ user_id: userId });
+
+    // convert array → object
+    const scoreMap = {};
+
+    scores.forEach(s => {
+      scoreMap[s.game_name] = s.score;
+    });
+
+    res.json({
+      user,
+      scores: scoreMap
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 /* SAVE SCORE */
 
 app.post("/save-score",async(req,res)=>{
