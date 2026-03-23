@@ -11,7 +11,9 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
+console.log("CONNECTED DB:", mongoose.connection.host);
 console.log("Cloud Name:", process.env.CLOUDINARY_CLOUD_NAME);
+console.log("MONGO URI:", process.env.MONGO_URI);
 
 const cloudinary = require('cloudinary').v2;
 
