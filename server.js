@@ -225,31 +225,37 @@ app.post("/change-password/:id",async(req,res)=>{
 app.get("/analytics", async (req, res) => {
   try {
 
-    const totalUsers = await User.countDocuments();
-    const totalGamesPlayed = await Score.countDocuments();
-
-    const gameStats = await Score.aggregate([
+    const games = await Score.aggregate([
       {
         $group: {
-          _id: "$game_name",
+          _id: {
+            game: "$game_name",
+            user: "$user_id"
+          },
+          score: { $max: "$score" }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.game",
+          users: {
+            $push: {
+              user_id: "$_id.user",
+              score: "$score"
+            }
+          },
           totalPlays: { $sum: 1 }
         }
       },
       {
         $sort: { totalPlays: -1 }
+      },
+      {
+        $limit: 4
       }
     ]);
 
-    const formatted = {};
-    gameStats.forEach(g => {
-      formatted[g._id] = g.totalPlays;
-    });
-
-    res.json({
-      totalUsers,
-      totalGamesPlayed,
-      games: formatted
-    });
+    res.json(games);
 
   } catch (err) {
     res.status(500).json({ error: err.message });
