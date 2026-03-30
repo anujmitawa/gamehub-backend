@@ -240,15 +240,16 @@ app.get("/analytics", async (req, res) => {
       }
     ]);
 
-    const formatted = {};
-    gameStats.forEach(g => {
-      formatted[g._id] = g.totalPlays;
-    });
+    /// 🔥 CLEAN FORMAT (ARRAY instead of MAP)
+    const games = gameStats.map(g => ({
+      name: g._id,
+      plays: Number(g.totalPlays) // ✅ force number
+    }));
 
     res.json({
-      totalUsers,
-      totalGamesPlayed,
-      games: formatted
+      totalUsers: Number(totalUsers),          // ✅ ensure int
+      totalGamesPlayed: Number(totalGamesPlayed), // ✅ ensure int
+      games: games                             // ✅ array
     });
 
   } catch (err) {
