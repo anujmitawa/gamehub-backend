@@ -231,7 +231,15 @@ app.get("/analytics", async (req, res) => {
       {
         $group: {
           _id: "$game_name",
-          totalPlays: { $sum: 1 }
+          totalPlays: { $sum: 1 },
+
+          /// 🔥 USERS DATA ADD
+          users: {
+            $push: {
+              user: "$user_id",
+              score: "$score"
+            }
+          }
         }
       },
       {
@@ -239,16 +247,17 @@ app.get("/analytics", async (req, res) => {
       }
     ]);
 
-    const games = gameStats.map((g, index) => ({
+    const games = gameStats.map((g, i) => ({
       name: g._id,
       plays: Number(g.totalPlays),
-      rank: index + 1
+      rank: i + 1,
+      users: g.users
     }));
 
     res.json({
       totalUsers: Number(totalUsers),
       totalGamesPlayed: Number(totalGamesPlayed),
-      topGame: games.length > 0 ? games[0].name : null,
+      topGame: games[0]?.name || "",
       games
     });
 
