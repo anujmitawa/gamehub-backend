@@ -227,48 +227,45 @@ app.get("/analytics", async (req, res) => {
     const totalUsers = await User.countDocuments();
     const totalGamesPlayed = await Score.countDocuments();
 
-    const gameStats = await Score.aggregate([
+  const gameStats = await Score.aggregate([
+  {
+    $match: {
+      score: { $gt: 0 }
+    }
+  },
 
-      /// 🔥 REMOVE SCORE 0 USERS
-      {
-        $match: {
-          score: { $gt: 0 }
+  {
+    $lookup: {
+      from: "users",
+      localField: "user_id",
+      foreignField: "_id",
+      as: "userData"
+    }
+  },
+
+  /// 🔥 FIX HERE
+  {
+    $unwind: {
+      path: "$userData",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+
+  {
+    $group: {
+      _id: "$game_name",
+      totalPlays: { $sum: 1 },
+      users: {
+        $push: {
+          user: { $ifNull: ["$userData.name", "Unknown"] }, // 🔥 fallback
+          score: "$score"
         }
-      },
-
-      /// 🔥 JOIN USER DATA (for name)
-      {
-        $lookup: {
-          from: "users", // collection name (check exact name)
-          localField: "user_id",
-          foreignField: "_id",
-          as: "userData"
-        }
-      },
-
-      {
-        $unwind: "$userData"
-      },
-
-      /// 🔥 GROUP BY GAME
-      {
-        $group: {
-          _id: "$game_name",
-          totalPlays: { $sum: 1 },
-
-          users: {
-            $push: {
-              user: "$userData.name", // ✅ NAME instead of ID
-              score: "$score"
-            }
-          }
-        }
-      },
-
-      {
-        $sort: { totalPlays: -1 }
       }
-    ]);
+    }
+  },
+
+  { $sort: { totalPlays: -1 } }
+]);
 
     const games = gameStats.map((g, i) => ({
       name: g._id,
