@@ -224,7 +224,6 @@ app.post("/change-password/:id",async(req,res)=>{
 /* GAME ANALYTICS  */
 app.get("/analytics", async (req, res) => {
   try {
-
     const totalUsers = await User.countDocuments();
     const totalGamesPlayed = await Score.countDocuments();
 
@@ -240,16 +239,17 @@ app.get("/analytics", async (req, res) => {
       }
     ]);
 
-    /// 🔥 CLEAN FORMAT (ARRAY instead of MAP)
-    const games = gameStats.map(g => ({
+    const games = gameStats.map((g, index) => ({
       name: g._id,
-      plays: Number(g.totalPlays) // ✅ force number
+      plays: Number(g.totalPlays),
+      rank: index + 1
     }));
 
     res.json({
-      totalUsers: Number(totalUsers),          // ✅ ensure int
-      totalGamesPlayed: Number(totalGamesPlayed), // ✅ ensure int
-      games: games                             // ✅ array
+      totalUsers: Number(totalUsers),
+      totalGamesPlayed: Number(totalGamesPlayed),
+      topGame: games.length > 0 ? games[0].name : null,
+      games
     });
 
   } catch (err) {
