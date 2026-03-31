@@ -228,20 +228,43 @@ app.get("/analytics", async (req, res) => {
     const totalGamesPlayed = await Score.countDocuments();
 
     const gameStats = await Score.aggregate([
+
+      /// 🔥 REMOVE SCORE 0 USERS
+      {
+        $match: {
+          score: { $gt: 0 }
+        }
+      },
+
+      /// 🔥 JOIN USER DATA (for name)
+      {
+        $lookup: {
+          from: "users", // collection name (check exact name)
+          localField: "user_id",
+          foreignField: "_id",
+          as: "userData"
+        }
+      },
+
+      {
+        $unwind: "$userData"
+      },
+
+      /// 🔥 GROUP BY GAME
       {
         $group: {
           _id: "$game_name",
           totalPlays: { $sum: 1 },
 
-          /// 🔥 USERS DATA ADD
           users: {
             $push: {
-              user: "$user_id",
+              user: "$userData.name", // ✅ NAME instead of ID
               score: "$score"
             }
           }
         }
       },
+
       {
         $sort: { totalPlays: -1 }
       }
