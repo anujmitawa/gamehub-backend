@@ -227,53 +227,51 @@ app.get("/analytics", async (req, res) => {
     const totalUsers = await User.countDocuments();
     const totalGamesPlayed = await Score.countDocuments();
 
-  const gameStats = await Score.aggregate([
+    const gameStats = await Score.aggregate([
 
-  {
-    $match: {
-      score: { $gt: 0 }
-    }
-  },
+      /// 🔥 REMOVE SCORE 0 USERS
+      {
+        $match: {
+          score: { $gt: 0 }
+        }
+      },
 
-  {
-    $lookup: {
-      from: "users",
-      let: { userId: "$user_id" },
-      pipeline: [
-        {
-          $match: {
-            $expr: {
-              $eq: ["$_id", { $toObjectId: "$$userId" }]
+      /// 🔥 SAFE LOOKUP (NO CRASH)
+      {
+        $lookup: {
+          from: "users",
+          localField: "user_id",
+          foreignField: "_id",
+          as: "userData"
+        }
+      },
+
+      /// 🔥 SAFE UNWIND
+      {
+        $unwind: {
+          path: "$userData",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      /// 🔥 GROUP DATA
+      {
+        $group: {
+          _id: "$game_name",
+          totalPlays: { $sum: 1 },
+          users: {
+            $push: {
+              user: {
+                $ifNull: ["$userData.name", "Unknown"] // 🔥 fallback
+              },
+              score: "$score"
             }
           }
         }
-      ],
-      as: "userData"
-    }
-  },
+      },
 
-  {
-    $unwind: {
-      path: "$userData",
-      preserveNullAndEmptyArrays: true
-    }
-  },
-
-  {
-    $group: {
-      _id: "$game_name",
-      totalPlays: { $sum: 1 },
-      users: {
-        $push: {
-          user: "$userData.name", // ✅ NOW WORKS
-          score: "$score"
-        }
-      }
-    }
-  },
-
-  { $sort: { totalPlays: -1 } }
-]);
+      { $sort: { totalPlays: -1 } }
+    ]);
 
     const games = gameStats.map((g, i) => ({
       name: g._id,
@@ -285,11 +283,12 @@ app.get("/analytics", async (req, res) => {
     res.json({
       totalUsers: Number(totalUsers),
       totalGamesPlayed: Number(totalGamesPlayed),
-      topGame: games[0]?.name || "",
+      topGame: games.length > 0 ? games[0].name : "",
       games
     });
 
   } catch (err) {
+    console.log("❌ ANALYTICS ERROR:", err); // 🔥 DEBUG
     res.status(500).json({ error: err.message });
   }
 });
