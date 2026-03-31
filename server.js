@@ -228,6 +228,7 @@ app.get("/analytics", async (req, res) => {
     const totalGamesPlayed = await Score.countDocuments();
 
   const gameStats = await Score.aggregate([
+
   {
     $match: {
       score: { $gt: 0 }
@@ -237,13 +238,20 @@ app.get("/analytics", async (req, res) => {
   {
     $lookup: {
       from: "users",
-      localField: "user_id",
-      foreignField: "_id",
+      let: { userId: "$user_id" },
+      pipeline: [
+        {
+          $match: {
+            $expr: {
+              $eq: ["$_id", { $toObjectId: "$$userId" }]
+            }
+          }
+        }
+      ],
       as: "userData"
     }
   },
 
-  /// 🔥 FIX HERE
   {
     $unwind: {
       path: "$userData",
@@ -257,7 +265,7 @@ app.get("/analytics", async (req, res) => {
       totalPlays: { $sum: 1 },
       users: {
         $push: {
-          user: { $ifNull: ["$userData.name", "Unknown"] }, // 🔥 fallback
+          user: "$userData.name", // ✅ NOW WORKS
           score: "$score"
         }
       }
