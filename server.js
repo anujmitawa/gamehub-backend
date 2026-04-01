@@ -240,8 +240,25 @@ app.get("/analytics", async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "user_id",
-          foreignField: "_id",
+          let: { userId: "$user_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    "$_id",
+                    {
+                      $cond: {
+                        if: { $eq: [{ $type: "$$userId" }, "objectId"] },
+                        then: "$$userId",
+                        else: { $toObjectId: "$$userId" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
           as: "userData"
         }
       },
