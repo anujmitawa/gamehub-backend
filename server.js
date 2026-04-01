@@ -235,7 +235,6 @@ app.get("/analytics", async (req, res) => {
           score: { $gt: 0 }
         }
       },
-
       /// 🔥 SAFE LOOKUP (NO CRASH)
       {
         $lookup: {
@@ -310,6 +309,28 @@ app.get("/analytics", async (req, res) => {
   }
 });
 
+/// 2048 high score code
+          app.get("/highscore/2048", async (req, res) => {
+            try {
+                  const result = await Score.aggregate([
+                    { $match: { game_name: "2048" } },
+                    {
+                      $group: {
+                        _id: null,
+                        highscore: { $max: "$score" }
+                      }
+                    }
+                  ]);
+
+                  res.json({
+                    highscore: result.length > 0 ? result[0].highscore : 0
+                  });
+
+                } catch (err) {
+                  res.status(500).json({ error: err.message });
+                }
+           });
+           
 /* SAVE USER DETAILS */
 app.get("/user-details/:id", async (req, res) => {
   try {
